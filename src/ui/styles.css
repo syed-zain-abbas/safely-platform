@@ -1,0 +1,31 @@
+:root { color: #172033; background: #f6f8fb; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+button, input, select { font: inherit; }
+button { cursor: pointer; }
+.shell { max-width: 760px; margin: 0 auto; padding: 32px 20px 48px; }
+.popup { width: 330px; padding: 20px; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 1.1rem; color: #133b35; }
+.shield { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 9px; background: #147a67; color: white; }
+.card { background: white; border: 1px solid #e3e9f0; border-radius: 14px; padding: 20px; margin-top: 18px; box-shadow: 0 3px 14px #24314b0d; }
+.row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.stack { display: grid; gap: 12px; }
+.muted { color: #5c687c; font-size: .92rem; line-height: 1.5; }
+.label { font-weight: 700; }
+.mode { text-transform: capitalize; color: #147a67; font-weight: 750; }
+.button { border: 0; border-radius: 8px; background: #147a67; color: white; padding: 10px 14px; font-weight: 700; text-decoration: none; display: inline-block; }
+.button.secondary { background: #e9f2f0; color: #124b41; }
+.button.danger { background: #bd3341; }
+.button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid #6dbbaa; outline-offset: 2px; }
+.field { display: grid; gap: 6px; }
+input, select { width: 100%; border: 1px solid #bbc6d4; border-radius: 8px; padding: 10px; background: white; }
+.mode-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.mode-button { text-align: left; background: white; border: 1px solid #cbd5e1; border-radius: 10px; padding: 12px; }
+.mode-button.active { border-color: #147a67; box-shadow: inset 0 0 0 1px #147a67; }
+.toggle { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #edf1f5; }
+.domain-list { list-style: none; padding: 0; margin: 8px 0 0; }
+.domain-list li { display: flex; align-items: center; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid #edf1f5; word-break: break-all; }
+.error { color: #a31d2a; font-size: .9rem; }
+.notice { color: #146351; background: #eaf7f3; padding: 10px; border-radius: 8px; }
+.center { max-width: 540px; min-height: 100vh; display: grid; align-content: center; text-align: center; }
+.warning .shield { background: #a85f00; }

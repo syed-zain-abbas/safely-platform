@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "safely-platform",
+  "version": "0.1.0",
+  "description": "Privacy-respecting safer browsing for families.",
+  "icons": {
+    "128": "icons/safely-platform-logo.png"
+  },
+  "action": {
+    "default_title": "safely-platform",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "128": "icons/safely-platform-logo.png"
+    }
+  },
+  "background": {
+    "service_worker": "service-worker.js",
+    "type": "module"
+  },
+  "options_page": "options.html",
+  "permissions": [
+    "storage",
+    "declarativeNetRequest"
+  ],
+  "optional_host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["blocked.html", "warning.html"],
+      "matches": ["http://*/*", "https://*/*"]
+    }
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; base-uri 'self'"
+  }
+}
