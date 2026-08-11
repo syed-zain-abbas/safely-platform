@@ -1,60 +1,75 @@
-import { BUNDLED_RULES } from "../shared/rules";
+import { BUNDLED_RULES } from "../shared/category-rules";
 import { getSettings, saveSettings } from "../shared/storage";
 import { enabledCategories, type Category, type StatusMessage } from "../shared/types";
+import { DnrRuleService } from "./dnr-rule-service";
+import { classifyPage } from "../classification/local-classifier";
+import { decide } from "../policy/risk-engine";
+import { recordSafetyEvent } from "../events/safety-event-service";
+import type { ExtensionMessage } from "../shared/extension-messages";
 
-const DYNAMIC_RULE_LIMIT = 4_000;
-const BLOCKED_PATH = "/blocked.html";
-const WARNING_PATH = "/warning.html";
 const WEB_ORIGINS = ["http://*/*", "https://*/*"];
+const dnrRules = new DnrRuleService();
 
-function redirectPath(category: Category): string {
-  return category === "phishing" || category === "scam" ? WARNING_PATH : BLOCKED_PATH;
-}
-
-function toRule(id: number, domain: string, category: Category, priority: number, canRedirect: boolean): chrome.declarativeNetRequest.Rule {
-  return {
-    id,
-    priority,
-    action: canRedirect
-      ? { type: chrome.declarativeNetRequest.RuleActionType.REDIRECT, redirect: { extensionPath: redirectPath(category) } }
-      : { type: chrome.declarativeNetRequest.RuleActionType.BLOCK },
-    condition: { urlFilter: `||${domain}^`, resourceTypes: [chrome.declarativeNetRequest.ResourceType.MAIN_FRAME] }
-  };
+async function syncContentClassifier(): Promise<void> {
+  const settings = await getSettings();
+  const hasPermission = await chrome.permissions.contains({ permissions: ["scripting"], origins: WEB_ORIGINS });
+  if (!hasPermission) return;
+  const registered = await chrome.scripting.getRegisteredContentScripts({ ids: ["safely-page-classifier"] });
+  if (!settings.contentAnalysisEnabled) { if (registered.length) await chrome.scripting.unregisterContentScripts({ ids: ["safely-page-classifier"] }); return; }
+  if (registered.length) return;
+  await chrome.scripting.registerContentScripts([{ id: "safely-page-classifier", js: ["content-script.js"], matches: WEB_ORIGINS, runAt: "document_idle", persistAcrossSessions: true }]);
 }
 
 async function applyRules(): Promise<void> {
   const settings = await getSettings();
-  const categories = enabledCategories(settings);
-  const categoryRules = BUNDLED_RULES.filter((rule) => categories[rule.category]);
-  const customRules = settings.blockedDomains.map((domain) => ({ domain, category: "adult" as Category }));
-  const targets = [...categoryRules, ...customRules].slice(0, DYNAMIC_RULE_LIMIT);
-  // Redirecting a public navigation needs host access. Blocking does not.
+  // Redirecting a public navigation needs host access. Blocking remains the
+  // least-privilege fallback when the guardian has not approved it.
   const canRedirect = await chrome.permissions.contains({ origins: WEB_ORIGINS });
-  const previous = await chrome.declarativeNetRequest.getDynamicRules();
-  const addRules = targets.map((target, index) => toRule(index + 1, target.domain, target.category, index >= categoryRules.length ? 2 : 1, canRedirect));
-  await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds: previous.map((rule) => rule.id), addRules });
+  try {
+    await dnrRules.synchronize({
+      builtInBlockedDomains: BUNDLED_RULES,
+      enabledCategories: enabledCategories(settings),
+      userAllowlist: settings.allowedDomains,
+      userBlocklist: settings.blockedDomains,
+      redirectEnabled: canRedirect,
+      redirectPath: "/blocked.html"
+    });
+  } catch (error) {
+    console.error("safely-platform could not update its dynamic rules", error);
+  }
 }
 
 chrome.runtime.onInstalled.addListener(async () => {
   const settings = await getSettings();
   await saveSettings(settings);
   await applyRules();
+  await syncContentClassifier();
 });
 
 chrome.runtime.onStartup.addListener(() => { void applyRules(); });
 
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === "local" && changes.settings) void applyRules();
+  if (area === "local" && changes.settings) { void applyRules(); void syncContentClassifier(); }
 });
 
-chrome.permissions.onAdded.addListener(() => { void applyRules(); });
-chrome.permissions.onRemoved.addListener(() => { void applyRules(); });
+chrome.permissions.onAdded.addListener(() => { void applyRules(); void syncContentClassifier(); });
+chrome.permissions.onRemoved.addListener(() => { void applyRules(); void syncContentClassifier(); });
 
-chrome.runtime.onMessage.addListener((message: { type?: string }, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message: ExtensionMessage, _sender, sendResponse) => {
   if (message.type === "GET_STATUS") {
     void getSettings().then((settings) => {
       const response: StatusMessage = { type: "SAFELY_STATUS", mode: settings.mode, enabledCategories: enabledCategories(settings) };
       sendResponse(response);
+    });
+    return true;
+  }
+  if (message.type === "PAGE_SIGNALS") {
+    void getSettings().then(async (settings) => {
+      if (!settings.contentAnalysisEnabled || settings.allowedDomains.includes(message.signals.hostname)) return;
+      const result = classifyPage(message.signals); const decision = decide(result, settings.mode);
+      if (import.meta.env.DEV) console.log("Safely Debug", { domain: message.signals.hostname, classification: result.category, confidence: result.confidence, policy: settings.mode, decision, reasons: result.reasons });
+      if (decision.action === "WARN" || decision.action === "BLOCK") await recordSafetyEvent({ timestamp: Date.now(), category: result.category, action: decision.action, riskScore: Math.round(result.confidence * 100), reasonCode: decision.reasonCode, ...(settings.saveBlockedDomainHistory ? { domain: message.signals.hostname } : {}) });
+      sendResponse({ type: "POLICY_DECISION", action: decision.action, category: result.category, reasonCode: decision.reasonCode });
     });
     return true;
   }

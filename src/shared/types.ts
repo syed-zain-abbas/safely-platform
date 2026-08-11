@@ -7,9 +7,12 @@ export type CategorySettings = Record<Category, boolean>;
 export interface Settings {
   mode: ProtectionMode;
   customCategories: CategorySettings;
+  allowedDomains: string[];
   blockedDomains: string[];
   pin: PinVerifier | null;
   analyticsEnabled: boolean;
+  contentAnalysisEnabled: boolean;
+  saveBlockedDomainHistory: boolean;
 }
 
 export interface PinVerifier {
@@ -38,9 +41,12 @@ export const MODE_CATEGORIES: Record<Exclude<ProtectionMode, "custom">, Category
 export const DEFAULT_SETTINGS: Settings = {
   mode: "family",
   customCategories: { adult: true, phishing: true, malware: true, gambling: true, scam: true },
+  allowedDomains: [],
   blockedDomains: [],
   pin: null,
   analyticsEnabled: false
+  ,contentAnalysisEnabled: false
+  ,saveBlockedDomainHistory: false
 };
 
 export function enabledCategories(settings: Settings): CategorySettings {

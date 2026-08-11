@@ -1,8 +1,4 @@
-import type { StatusMessage } from "../shared/types";
-
-// This intentionally does not inspect page text, inputs, or browsing history.
-// Blocking is performed by declarativeNetRequest before the page is usable.
-chrome.runtime.sendMessage({ type: "GET_STATUS" }, (response: StatusMessage | undefined) => {
-  if (chrome.runtime.lastError || !response) return;
-  document.documentElement.dataset.safelyPlatform = "protected";
-});
+import { extractPageSafetySignals } from "./page-signal-extractor";
+// Values, cookies, storage, messages, and raw HTML are intentionally never read.
+const send = () => chrome.runtime.sendMessage({ type: "PAGE_SIGNALS", signals: extractPageSafetySignals() });
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", () => queueMicrotask(send), { once: true }); else queueMicrotask(send);

@@ -23,7 +23,7 @@ After code changes, rerun `npm run build` and click the extension's reload butto
 
 ## Important production note
 
-The bundled rules intentionally use `.invalid` test domains only. Before a production release, replace `src/shared/rules.ts` with a signed, reviewed threat-intelligence ruleset and implement signature validation/version rollback protection as specified in `PRD.md`. Do not turn a remote, unsigned rules feed into executable code.
+The bundled rules intentionally use reserved `*.example.com` test domains only. Before a production release, replace `src/shared/category-rules.ts` with a signed, reviewed threat-intelligence ruleset and implement signature validation/version rollback protection as specified in `PRD.md`. Do not turn a remote, unsigned rules feed into executable code.
 
 ## Permissions
 

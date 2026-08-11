@@ -1,0 +1,2 @@
+import type { WeightedKeyword } from "../classifier-config";
+export const GAMBLING_KEYWORDS: WeightedKeyword[] = [{ term: "online casino", weight: 22 }, { term: "sports betting", weight: 20 }, { term: "live roulette", weight: 18 }, { term: "slot machine", weight: 16 }, { term: "deposit bonus", weight: 14 }, { term: "place your bet", weight: 18 }, { term: "casino", weight: 22 }, { term: "gambling", weight: 45 }];

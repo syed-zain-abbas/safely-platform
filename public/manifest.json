@@ -26,6 +26,7 @@
     "http://*/*",
     "https://*/*"
   ],
+  "optional_permissions": ["scripting"],
   "web_accessible_resources": [
     {
       "resources": ["blocked.html", "warning.html"],
