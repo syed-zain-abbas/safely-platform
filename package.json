@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest"
+    ,"build:rulesets": "node scripts/compile-static-rulesets.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",

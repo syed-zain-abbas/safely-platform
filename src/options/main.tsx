@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { CATEGORIES, MODE_CATEGORIES, type Category, type ProtectionMode, type Settings } from "../shared/types";
 import { createPinVerifier, getSettings, saveSettings, verifyPin } from "../shared/storage";
 import { normalizeDomain } from "../shared/rules";
+import { parseLocalRuleset } from "../ruleset/local-ruleset-import";
 import "../ui/styles.css";
 
 const modes: { id: ProtectionMode; description: string }[] = [
@@ -15,6 +16,7 @@ const modes: { id: ProtectionMode; description: string }[] = [
 function App() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [domain, setDomain] = useState("");
+  const [allowDomain, setAllowDomain] = useState("");
   const [newPin, setNewPin] = useState("");
   const [warningPagesEnabled, setWarningPagesEnabled] = useState(false);
   const [message, setMessage] = useState("");
@@ -37,6 +39,12 @@ function App() {
     if (settings.blockedDomains.includes(normalized)) { setError("That domain is already blocked."); return; }
     await commit({ ...settings, blockedDomains: [...settings.blockedDomains, normalized] }); setDomain("");
   };
+  const addAllowedDomain = async () => {
+    const normalized = normalizeDomain(allowDomain);
+    if (!normalized) { setError("Enter a valid domain such as example.com."); return; }
+    if (settings.allowedDomains.includes(normalized)) { setError("That domain is already allowed."); return; }
+    await commit({ ...settings, allowedDomains: [...settings.allowedDomains, normalized] }); setAllowDomain("");
+  };
   const setPin = async () => {
     if (!/^\d{4,12}$/.test(newPin)) { setError("Use a PIN with 4 to 12 digits."); return; }
     const next = { ...settings, pin: await createPinVerifier(newPin) };
@@ -52,9 +60,21 @@ function App() {
     if (!granted) { setError("Content analysis needs website access and scripting permission."); return; }
     await commit({ ...settings, contentAnalysisEnabled: true });
   };
+  const importRuleset = async (file: File | undefined) => {
+    if (!file) return;
+    try {
+      const imported = parseLocalRuleset(await file.text());
+      await commit({ ...settings, importedRules: imported.ruleset.rules });
+      setMessage(`Imported ${imported.ruleset.rules.length} local rules.${imported.rejected.length ? ` Rejected ${imported.rejected.length} invalid entries.` : ""}`);
+    } catch (importError) {
+      setError(importError instanceof Error ? importError.message : "Could not import this ruleset file.");
+    }
+  };
   return <main className="shell"><div className="brand"><span className="shield">✓</span>safely-platform</div><p className="muted">Protection stays on this Chrome profile. We do not upload your browsing history.</p>{message && <p className="notice">{message}</p>}{error && <p className="error" role="alert">{error}</p>}
     <section className="card"><h2>Protection mode</h2><div className="mode-grid">{modes.map((mode) => <button key={mode.id} className={`mode-button ${settings.mode === mode.id ? "active" : ""}`} onClick={() => void commit({ ...settings, mode: mode.id })}><strong>{mode.id[0].toUpperCase() + mode.id.slice(1)}</strong><br /><span className="muted">{mode.description}</span></button>)}</div>{settings.mode === "custom" && <div className="stack" style={{ marginTop: 16 }}>{CATEGORIES.map((category) => <label className="toggle" key={category}><span>{category[0].toUpperCase() + category.slice(1)}</span><input type="checkbox" checked={settings.customCategories[category]} onChange={(event) => void commit({ ...settings, customCategories: { ...settings.customCategories, [category]: event.target.checked } })} /></label>)}</div>}{settings.mode !== "custom" && <p className="muted">Enabled: {CATEGORIES.filter((c) => MODE_CATEGORIES[settings.mode as Exclude<ProtectionMode, "custom">][c]).join(", ")}.</p>}</section>
     <section className="card"><h2>Blocked sites</h2><p className="muted">Adding a domain blocks it and all of its subdomains.</p><div className="row"><div className="field" style={{ flex: 1 }}><label htmlFor="domain">Domain</label><input id="domain" value={domain} placeholder="example.com" onChange={(event) => setDomain(event.target.value)} /></div><button className="button" onClick={() => void addDomain()}>Add</button></div><ul className="domain-list">{settings.blockedDomains.map((item) => <li key={item}><span>{item}</span><button className="button secondary" onClick={() => void commit({ ...settings, blockedDomains: settings.blockedDomains.filter((domainName) => domainName !== item) })}>Remove</button></li>)}</ul></section>
+    <section className="card"><h2>Allowed sites</h2><p className="muted">Allowed sites override matching category and family block rules.</p><div className="row"><input value={allowDomain} placeholder="example.com" onChange={(event) => setAllowDomain(event.target.value)} /><button className="button" onClick={() => void addAllowedDomain()}>Add</button></div><ul className="domain-list">{settings.allowedDomains.map((item) => <li key={item}><span>{item}</span><button className="button secondary" onClick={() => void commit({ ...settings, allowedDomains: settings.allowedDomains.filter((value) => value !== item) })}>Remove</button></li>)}</ul></section>
+    <section className="card"><h2>Local category rules</h2><p className="muted">Import a reviewed JSON ruleset from your computer. The file stays local and is never uploaded.</p><div className="stack"><input aria-label="Import local JSON ruleset" type="file" accept="application/json,.json" onChange={(event) => void importRuleset(event.target.files?.[0])} /><p className="muted">{settings.importedRules.length} imported rules active. Maximum: 4,000.</p>{settings.importedRules.length > 0 && <button className="button secondary" onClick={() => void commit({ ...settings, importedRules: [] })}>Remove imported rules</button>}</div></section>
     <section className="card"><h2>Guardian PIN</h2>{settings.pin ? <><p className="notice">PIN protection is enabled for settings changes.</p><button className="button secondary" onClick={() => void commit({ ...settings, pin: null })}>Disable PIN</button></> : <><p className="muted">Without a PIN, anyone using this Chrome profile can change settings.</p><div className="row"><div className="field" style={{ flex: 1 }}><label htmlFor="pin">New 4–12 digit PIN</label><input id="pin" inputMode="numeric" type="password" value={newPin} onChange={(event) => setNewPin(event.target.value)} /></div><button className="button" onClick={() => void setPin()}>Enable</button></div></>}</section>
     <section className="card"><h2>Safety warning pages</h2>{warningPagesEnabled ? <p className="notice">Custom blocked and warning pages are enabled.</p> : <><p className="muted">By default, Chrome blocks matching sites directly. Enable this only if you want Safely-platform’s own blocked and warning pages.</p><button className="button" onClick={() => void enableWarningPages()}>Enable warning pages</button></>}</section>
     <section className="card"><h2>Optional local content analysis</h2>{settings.contentAnalysisEnabled ? <p className="notice">Enabled. Limited signals are classified on this device only.</p> : <><p className="muted">Off by default. It reads limited visible text and page structure locally, never form values, cookies, or website storage.</p><button className="button" onClick={() => void enableContentAnalysis()}>Enable local analysis</button></>}</section>

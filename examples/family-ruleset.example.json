@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "rules": [
+    { "domain": "adult-test.example.com", "category": "adult" },
+    { "domain": "phishing-test.example.com", "category": "phishing" },
+    { "domain": "malware-test.example.com", "category": "malware" },
+    { "domain": "gambling-test.example.com", "category": "gambling" },
+    { "domain": "scam-test.example.com", "category": "scam" }
+  ]
+}

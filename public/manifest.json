@@ -18,6 +18,15 @@
     "type": "module"
   },
   "options_page": "options.html",
+  "declarative_net_request": {
+    "rule_resources": [
+      { "id": "adult", "enabled": false, "path": "rulesets/adult.json" },
+      { "id": "gambling", "enabled": false, "path": "rulesets/gambling.json" },
+      { "id": "malware", "enabled": false, "path": "rulesets/malware.json" },
+      { "id": "phishing", "enabled": false, "path": "rulesets/phishing.json" },
+      { "id": "scam", "enabled": false, "path": "rulesets/scam.json" }
+    ]
+  },
   "permissions": [
     "storage",
     "declarativeNetRequest"

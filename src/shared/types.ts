@@ -9,6 +9,7 @@ export interface Settings {
   customCategories: CategorySettings;
   allowedDomains: string[];
   blockedDomains: string[];
+  importedRules: RuleTarget[];
   pin: PinVerifier | null;
   analyticsEnabled: boolean;
   contentAnalysisEnabled: boolean;
@@ -43,6 +44,7 @@ export const DEFAULT_SETTINGS: Settings = {
   customCategories: { adult: true, phishing: true, malware: true, gambling: true, scam: true },
   allowedDomains: [],
   blockedDomains: [],
+  importedRules: [],
   pin: null,
   analyticsEnabled: false
   ,contentAnalysisEnabled: false

@@ -9,6 +9,14 @@ import type { ExtensionMessage } from "../shared/extension-messages";
 
 const WEB_ORIGINS = ["http://*/*", "https://*/*"];
 const dnrRules = new DnrRuleService();
+const STATIC_RULESETS = ["adult", "phishing", "malware", "gambling", "scam"] as const;
+
+async function syncStaticRulesets(): Promise<void> {
+  const settings = await getSettings(); const categories = enabledCategories(settings);
+  const enableRulesetIds = STATIC_RULESETS.filter((id) => categories[id]);
+  const enabled = await chrome.declarativeNetRequest.getEnabledRulesets();
+  await chrome.declarativeNetRequest.updateEnabledRulesets({ enableRulesetIds: enableRulesetIds.filter((id) => !enabled.includes(id)), disableRulesetIds: enabled.filter((id) => STATIC_RULESETS.includes(id as typeof STATIC_RULESETS[number]) && !enableRulesetIds.includes(id as typeof STATIC_RULESETS[number])) });
+}
 
 async function syncContentClassifier(): Promise<void> {
   const settings = await getSettings();
@@ -27,7 +35,7 @@ async function applyRules(): Promise<void> {
   const canRedirect = await chrome.permissions.contains({ origins: WEB_ORIGINS });
   try {
     await dnrRules.synchronize({
-      builtInBlockedDomains: BUNDLED_RULES,
+      builtInBlockedDomains: [...BUNDLED_RULES, ...settings.importedRules],
       enabledCategories: enabledCategories(settings),
       userAllowlist: settings.allowedDomains,
       userBlocklist: settings.blockedDomains,
@@ -43,13 +51,14 @@ chrome.runtime.onInstalled.addListener(async () => {
   const settings = await getSettings();
   await saveSettings(settings);
   await applyRules();
+  await syncStaticRulesets();
   await syncContentClassifier();
 });
 
 chrome.runtime.onStartup.addListener(() => { void applyRules(); });
 
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === "local" && changes.settings) { void applyRules(); void syncContentClassifier(); }
+  if (area === "local" && changes.settings) { void applyRules(); void syncStaticRulesets(); void syncContentClassifier(); }
 });
 
 chrome.permissions.onAdded.addListener(() => { void applyRules(); void syncContentClassifier(); });
